@@ -1,13 +1,7 @@
----
-name: huawei-modelarts-vllm-deploy
-description: >-
-  Deploy models to Huawei Cloud ModelArts real-time inference with AK/SK.
-  Default path is vLLM-Ascend for supported LLMs/VL. If the support matrix
-  marks the model unsupported (Whisper ASR, gated HF encoder-decoders), use
-  the custom torch_npu runtime instead of vllm serve. Prefer a user-provided
-  Kunpeng ARM ECS; never reuse another account's AK/SK, ECS, OBS, or SWR.
-  Use when deploying Qwen/vLLM, Whisper/ASR, SWR/OBS/DEW, or a Kunpeng prep host.
----
+# AGENTS.md — Codex / OpenAI coding agent
+
+# This file is auto-loaded by Codex CLI when working in this repo.
+# It provides the Huawei ModelArts vLLM deploy skill as a coding agent instruction.
 
 # Huawei ModelArts vLLM / custom NPU deploy
 
