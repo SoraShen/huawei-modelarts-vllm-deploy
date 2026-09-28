@@ -200,7 +200,12 @@ v0.23: **do not** wrap with v0.9 `serve.sh --enforce-eager` (BackOffStart). MM l
 
 **custom ASR:** same base for CANN/`torch_npu`. On ARM ECS, `docker build` FROM it, `pip install` transformers accelerate librosa soundfile fastapi uvicorn python-multipart. **CMD must not be `vllm serve`.** Use `bash /code/serve.sh` from [templates/whisper/](templates/whisper/).
 
-SWR login: signed create-authorization (or console long-term login), then `docker push` from the ARM ECS.
+SWR login (verified `af-south-1`; API host is `swr-api.{ma_region}`, not `swr.{ma_region}`):
+
+- Namespace: `POST https://swr-api.{ma_region}.myhuaweicloud.com/v2/manage/namespaces` `{"namespace":"<ns>"}`. 409 = already exists.
+- Temp login: `POST https://swr-api.{ma_region}.myhuaweicloud.com/v2/manage/utils/secret` body `{}`, signed with the deploy AK/SK (`huawei_signed.py`). **Not GET** — GET returns APIGW 404 (method not found).
+- 200 → `{"auths": {"<registry-host>": {"auth": "<base64(user:password)>"}}}`. Decode `auth` → docker user / password. Do not print.
+- `docker login swr.{ma_region}.myhuaweicloud.com` (no `-api`) on the ARM ECS, then push/pull there.
 
 ### Weights + code
 
