@@ -166,6 +166,10 @@ SWR **in ModelArts region**, `linux/arm64` only.
 
 **vLLM:** known good base `quay.io/ascend/vllm-ascend:v0.23.0` → `swr.{ma_region}.myhuaweicloud.com/<ns>/<name>:<tag>`.
 
+**Per-model tags / NPU / cmd:** [references/model-recipes.md](references/model-recipes.md). Qwen3.8-27B = `vllm-ascend:qwen3.8-a2` on **2** NPU (TP 2), not v0.23.0. Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
+
+CreateService v2 `image` = `{"source": "SWR", "swr_path": "..."}`, not a string. Euler docker bridge has no PyPI: `docker run --network host` → `pip install` → `docker commit`.
+
 v0.23: **do not** wrap with v0.9 `serve.sh --enforce-eager` (BackOffStart). MM limits: dotted `--limit-mm-per-prompt.image N` — JSON `'{"image":N}'` can fail argparse.
 
 **custom ASR:** same base for CANN/`torch_npu`. On ARM ECS, `docker build` FROM it, `pip install` transformers accelerate librosa soundfile fastapi uvicorn python-multipart. **CMD must not be `vllm serve`.** Use `bash /code/serve.sh` from [templates/whisper/](templates/whisper/).
