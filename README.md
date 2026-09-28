@@ -54,7 +54,7 @@ Clone this repo into your CodeArts workspace. `CODEARTS.md` provides instruction
 | `scripts/huawei_signed.py` | All | AK/SK REST signer |
 | `templates/whisper/` | All | Custom ASR runtime (serve.sh, server.py, language_tokens.py) |
 | `references/asr-custom.md` | All | Custom ASR reference |
-| `references/model-recipes.md` | All | Proven per-model image / NPU / cmd (Qwen3.8-27B, Whisper Sunbird) + v2 CreateService body |
+| `references/model-recipes.md` | All | Index only. Per-model notes (reference, not a frozen config) live in `references/models/` |
 
 All instruction files share the same content — only the header and entry point differ per platform.
 

@@ -1,59 +1,24 @@
-# Per-model recipes (reference deployment, `af-south-1`)
+# Model recipes（仅供参考）
 
-Values below are copied from a working Johannesburg public-pool deployment (the "reference deployment", which ran Qwen3.8 on 2 NPUs and Whisper on 1). Replace `<ns>` / `<bucket>` with **this account's** SWR namespace and OBS bucket. Do not reuse another account's SWR, OBS, or DEW.
+每个模型单独一份，镜像和部署方案会更新。这里只做索引和跨模型的坑。部署前以当时的教程和本账号已跑通的服务为准。
 
-Johannesburg NPU: Snt9b2 = Ascend 910B3 = **A2**. "8× 910B3" in a guide is the public inference pool node flavor `modelarts.bm.npu.arm.8snt9b2.d`, not the prep ECS size (prep ECS stays a small Kunpeng VM, §2). The public pool can schedule up to 8 NPUs per service. Dedicated pool + SFS Turbo is optional; neither deploy below needed it.
+Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」是公共池节点 `modelarts.bm.npu.arm.8snt9b2.d`，不是准备机规格。公共池单服务最多可调度 8 张卡。专属池和 SFS Turbo 不是下面这两个参考部署的前提。
 
 | Service flavor | NPU |
 |---|---|
 | `modelarts.bm.arm.24u.192g.npu.1d910b` | 1 |
 | `modelarts.bm.arm.48u.384g.npu.2d910b` | 2 |
 
-## Qwen3.8-27B (vLLM)
-
-| Field | Value |
+| Model | Note |
 |---|---|
-| Weights | `Eco-Tech/Qwen3.8-27B-w8a8` (W8A8 of `Qwen/Qwen3.8-27B`) → flat `obs://<bucket>/weight/` → `/weight/`. `--quantization ascend` needs this W8A8 checkpoint |
-| Upstream image | `quay.io/ascend/vllm-ascend:qwen3.8-a2` (**not** `v0.23.0`) |
-| SWR | `swr.af-south-1.myhuaweicloud.com/<ns>/vllm-ascend:qwen3.8-a2` (plain `docker pull` → `tag` → `push`, no rebuild) |
-| NPU | **2**, TP 2. `unit_configs[0].count` = **1** instance; the flavor carries the 2 cards |
-| Flavor | `modelarts.bm.arm.48u.384g.npu.2d910b` |
-| Health | startup HTTP `/health`, initial delay 600s, period 30s, timeout 30s, failure threshold 40 |
+| [Qwen3.8-27B](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2 |
+| [Whisper Sunbird](models/whisper-sunbird.md) | 自定义镜像，1 卡，`bash /code/serve.sh` |
 
-```bash
-vllm serve /weight --tensor-parallel-size 2 --quantization ascend \
-  --served-model-name qwen3.8 --max-model-len 131072 --max-num-seqs 32 \
-  --max-num-batched-tokens 16384 --gpu-memory-utilization 0.85 \
-  --port 8000 --host 0.0.0.0
-```
-
-Not 1 card, not TP 1, not the v0.23.0 image. A later 1-NPU `v0.23.0` attempt did not match this recipe.
-
-## Whisper `Sunbird/asr-whisper-51-african-languages` (custom)
-
-| Field | Value |
-|---|---|
-| Image | custom `swr.af-south-1.myhuaweicloud.com/<ns>/whisper-custom:v0.23` (FROM `quay.io/ascend/vllm-ascend:v0.23.0` for CANN/`torch_npu`, see [asr-custom.md](asr-custom.md)) |
-| Runtime | `transformers` + `torch_npu` FastAPI ([templates/whisper/](../templates/whisper/)) |
-| NPU | **1** |
-| Flavor | `modelarts.bm.arm.24u.192g.npu.1d910b` |
-| Cmd | `bash /code/serve.sh` — never `vllm serve`, never `faster-whisper` |
-| Mounts | `obs://<bucket>/weight/` → `/weight/`, `obs://<bucket>/code/` → `/code/` |
-| Health | startup HTTP `/health`, initial delay 480s, period 10s, timeout 10s, failure threshold 18 |
-| Languages | Sunbird ISO-639-3 (`swa`, `eng`, `afr`, `zul`, …) from `language_tokens.py`; always force `language`, no auto-detect |
-
-Required OBS files (a failed deploy was missing `model.safetensors` and `language_tokens.py`):
-
-| Mount | Must contain |
-|---|---|
-| `/weight/` | `config.json`, **`model.safetensors`**, tokenizer + `preprocessor_config.json` / `processor_config.json` |
-| `/code/` | `serve.sh`, `server.py`, **`language_tokens.py`** ([templates/whisper/](../templates/whisper/)) |
-
-Before CreateInferService, `obsutil ls` both prefixes and confirm every file above sits at the prefix root (not nested).
+换账号时只换 `<ns>` / `<bucket>` / DEW。不要复用别的账号的 SWR、OBS 或 DEW。
 
 ## v2 CreateService body (returned HTTP 200)
 
-`POST https://modelarts.{ma_region}.myhuaweicloud.com/v2/{project_id}/services`. Shape only; fill values from the recipe.
+`POST https://modelarts.{ma_region}.myhuaweicloud.com/v2/{project_id}/services`。只保留形状，数值从对应模型的参考文件填。
 
 ```json
 {
@@ -80,15 +45,15 @@ Before CreateInferService, `obsutil ls` both prefixes and confirm every file abo
 }
 ```
 
-- `image` is an **object** `{source: SWR, swr_path}`. A plain string is rejected.
-- `secret_type` `DEW`; the secret holds `accessKeyId` / `secretAccessKey` for the OBS mounts (§DEW).
-- `rate_limit` lives under `runtime_config.service_limit` (missing → `ModelArts.8037`).
-- Field name is `flavor`. Port **8000** in both `service_invoke` and the unit.
+- `image` 必须是对象 `{source: SWR, swr_path}`。字符串会被拒绝。
+- `secret_type` 为 `DEW`。密钥里是 `accessKeyId` / `secretAccessKey`。
+- `rate_limit` 在 `runtime_config.service_limit` 下，缺了会 `ModelArts.8037`。
+- 字段名是 `flavor`。端口 8000。
 
-## Generic pitfalls (proven)
+## 跨模型的坑
 
-- **obsutil directory cp nests twice** (`prefix/dir/dir/`). Upload per-file (§Weights + code).
-- **`obsutil ls obs://<missing-bucket>`** still prints the bucket name. Do not read that as "bucket exists"; check for objects / an error line.
-- **SWR docker login host** is `swr.<region>.myhuaweicloud.com` (the token comes from `swr-api.<region>`). `docker login` without that host logs into docker.io.
-- **Euler docker bridge cannot reach PyPI.** Build extras with `docker run --network host ... pip install ...`, then `docker commit` the container to the new tag, then push.
-- **New account = fresh OBS bucket, SWR namespace, DEW secret, prep ECS.** Nothing carries over.
+- `obsutil` 拷目录会套两层（`prefix/dir/dir/`）。按文件上传。
+- `obsutil ls obs://<不存在的桶>` 仍会打印桶名。要看对象或错误行，不要只看桶名。
+- `docker login` 的仓库地址是 `swr.<region>.myhuaweicloud.com`。令牌来自 `swr-api.<region>`。不写地址会登到 docker.io。
+- Euler 的 docker 网桥上不了 PyPI。用 `docker run --network host` 装包，再 `docker commit`。
+- 新账号用自己的 OBS、SWR、DEW 和准备机。

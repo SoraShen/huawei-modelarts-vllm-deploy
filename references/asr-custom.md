@@ -28,7 +28,7 @@ On the same ARM ECS, FROM `quay.io/ascend/vllm-ascend:v0.23.0`, install:
 
 Euler's docker bridge cannot reach PyPI, so `docker build` pip steps fail. Use `docker run --network host <base> pip install ...`, then `docker commit` that container as `<ns>/whisper-custom:v0.23`.
 
-Push `linux/arm64` to **ModelArts-region** SWR. Container listens on **8000**. Reference tag / flavor / health: [model-recipes.md](model-recipes.md).
+Push `linux/arm64` to **ModelArts-region** SWR. Container listens on **8000**. Reference tag / flavor / health: [models/whisper-sunbird.md](models/whisper-sunbird.md). Reference only.
 
 ## Code mount
 

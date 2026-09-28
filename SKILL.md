@@ -59,7 +59,7 @@ Ask in Chinese. Defaults in **bold**. Block until AK/SK and model name exist.
 | **AK / SK** | env `HUAWEI_AK` `HUAWEI_SK` (or `huawei-ak` / `huawei-sk` in a user-named `.env.local` **for this account**) | Required. Session export only. Wrong-account file → ignore, ask again. |
 | **Model name** | — | HF / ModelScope id, e.g. `Qwen/Qwen3-VL-8B-Instruct` or `Sunbird/asr-whisper-51-african-languages` |
 | **Runtime** | from §0 | `vllm` or `custom`. Do not let the user skip the gate. |
-| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) (Qwen3.8-27B → **2**, Whisper Sunbird → **1**). Else matrix / fallback Qwen3-VL-8B → **1**. |
+| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B](references/models/qwen3.8-27b.md) → **2**, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
 | **ModelArts region** | **`af-south-1` 南非** | Option: `ap-southeast-1` 香港. Third region: list flavors first, then ask. |
 | **ECS region** | **`ap-southeast-3` 新加坡** | Option: `ap-southeast-1` 香港 **only if** ListFlavors has Kunpeng/`kc1`/`aarch64`. |
 | **Pool** | **`public`** | `dedicated`: list pools, user picks id. Never `POST /pools`. |
@@ -172,7 +172,7 @@ Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public
 
 ## 6. Pool behavior
 
-**Public:** omit `pool_id`. Compact scheduling. Multiple public-pool services **can** run simultaneously (e.g. 1-card + 2-card + 1-card = 4 NPU across 3 services) — total NPU is the quota, not service count. Multi-NPU public pods have hit missing HCCL rank-table — prefer **1 NPU** unless the model needs TP>1. Qwen3.8-27B does: it ran on the public pool at TP 2 (2-card flavor) — [references/model-recipes.md](references/model-recipes.md). Upgrade: `max_surge=0%`, `max_unavailable=100%` (stop → PUT version → start). Rolling 25/25 on 4 cards often `FailedScheduling`.
+**Public:** omit `pool_id`. Compact scheduling. Multiple public-pool services **can** run simultaneously (e.g. 1-card + 2-card + 1-card = 4 NPU across 3 services) — total NPU is the quota, not service count. Multi-NPU public pods have hit missing HCCL rank-table — prefer **1 NPU** unless the model needs TP>1. Qwen3.8-27B does: it ran on the public pool at TP 2 (2-card flavor) — [references/models/qwen3.8-27b.md](references/models/qwen3.8-27b.md). Upgrade: `max_surge=0%`, `max_unavailable=100%` (stop → PUT version → start). Rolling 25/25 on 4 cards often `FailedScheduling`.
 
 **Dedicated:** same OBS/SWR/DEW/image/code as public. TP = visible NPUs. Do not apply public-pool rank-table folklore.
 
@@ -198,7 +198,7 @@ SWR **in ModelArts region**, `linux/arm64` only.
 
 **vLLM:** known good base `quay.io/ascend/vllm-ascend:v0.23.0` → `swr.{ma_region}.myhuaweicloud.com/<ns>/<name>:<tag>`.
 
-**Per-model tags / NPU / cmd:** [references/model-recipes.md](references/model-recipes.md). Qwen3.8-27B = `vllm-ascend:qwen3.8-a2` on **2** NPU (TP 2), not v0.23.0. Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
+**Per-model tags / NPU / cmd (reference only):** [references/models/](references/models/). Qwen3.8-27B = `vllm-ascend:qwen3.8-a2` on **2** NPU (TP 2), not v0.23.0. Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
 
 CreateService v2 `image` = `{"source": "SWR", "swr_path": "..."}`, not a string. Euler docker bridge has no PyPI: `docker run --network host` → `pip install` → `docker commit`.
 
