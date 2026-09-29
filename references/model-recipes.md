@@ -11,7 +11,7 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 
 | Model | Note |
 |---|---|
-| [Qwen3.8-27B](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2，权重用 FILE |
+| [Qwen3.8-27B](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2，FILE 挂载。权重必须是约 30GB 的 W8A8，不是约 52GB 的未量化 checkpoint |
 | [Qwen3-VL-8B](models/qwen3-vl-8b.md) | `qwen3-vl-8b:v1`，1 卡，`bash /code/serve.sh` |
 | [Whisper Sunbird](models/whisper-sunbird.md) | 自定义镜像，1 卡，`bash /code/serve.sh` |
 
@@ -47,6 +47,7 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 ```
 
 - 权重挂载用 `files` + `type: FILE`。`type: MODEL` 在 Qwen3.8 上会耗满 60 分钟部署超时；FILE 约 11 分钟进入运行。
+- 创建前先列出挂载前缀。分片文件名必须和启动命令匹配。`OBS mount config settled` 只说明挂上了；紧接着的 `BackOffStart` 是容器崩溃（权重不对），不是挂载慢，也不是镜像 digest 不对。Qwen3.8 要 10 个 `quant_model_weights-*.safetensors`（约 30GB）。18 个 `model-*-of-00018.safetensors`（约 52GB）对不上 `--quantization ascend`。
 - `image` 必须是对象 `{source: SWR, swr_path}`。字符串会被拒绝。
 - `secret_type` 为 `DEW`。密钥里是 `accessKeyId` / `secretAccessKey`。
 - `rate_limit` 在 `runtime_config.service_limit` 下，缺了会 `ModelArts.8037`。

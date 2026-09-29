@@ -20,4 +20,9 @@ vllm serve /weight --tensor-parallel-size 2 --quantization ascend \
 
 不要用 1 卡、TP 1 或 `v0.23.0`。
 
-权重必须是 W8A8：10 个 `quant_model_weights-*.safetensors`，合计约 30GB。18 个 `model-*.safetensors`、合计约 52GB 的未量化 checkpoint 对不上 `--quantization ascend`，容器会 BackOffStart。两边镜像 digest 相同也没用。
+创建前列出挂载前缀，确认是下面这套，而不是未量化的 `model-*-of-00018.safetensors`：
+
+- 10 个 `quant_model_weights-00001-of-00010.safetensors` … `00010`，外加 `quant_model_weights.safetensors.index.json`，合计约 30GB
+- 前缀里不要同时留下 `model-*.safetensors`。挂载是整个目录，混在一起时 vLLM 仍可能读到未量化分片
+
+18 个 `model-*.safetensors`、合计约 52GB 的未量化 checkpoint 对不上 `--quantization ascend`，容器会 BackOffStart。两边镜像 digest 相同也没用。`OBS mount config settled` 只说明挂上了。

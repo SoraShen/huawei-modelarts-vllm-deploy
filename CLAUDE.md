@@ -229,6 +229,7 @@ Public OBS mount: CSMS keys **exactly** `accessKeyId` / `secretAccessKey`. Dedic
 - PUT existing version number → `ModelArts.8031` → bump
 - STOP can take minutes; START after PUT may 400 while already DEPLOYING — poll GET
 - `FailedScheduling` WARNING on public pool is often **transient** — pod retries and schedules within 5-10 min. Do not delete; poll GET until `running_count ≥ 1`.
+- Before POST, list the mount prefix. Shard **names** must match the recipe command. `OBS mount config settled` only means the mount attached. The next event `BackOffStart` means the container crashed (wrong checkpoint), not a slow mount and not a bad image. Qwen3.8 with `--quantization ascend` needs the ~30GB W8A8 set (`quant_model_weights-*.safetensors`). The ~52GB full checkpoint (`model-*-of-00018.safetensors`) crash-loops even when the image digest matches.
 
 ### API key
 
