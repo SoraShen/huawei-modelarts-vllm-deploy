@@ -20,31 +20,32 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 
 `POST https://modelarts.{ma_region}.myhuaweicloud.com/v2/{project_id}/services`。只保留形状，数值从对应模型的参考文件填。
 
+创建请求里 `version` 是字符串。GET 返回的 `version` 对象不能原样 POST。组上的 `weight` 是流量权重整数（100），不是模型挂载。
+
 ```json
 {
-  "name": "<service>", "type": "REAL_TIME",
-  "version": {
-    "version": "1.0.0", "deploy_timeout_minutes": 60,
-    "upgrade_config": {"type": "ROLLING", "rolling_update": {"max_surge": "0%", "max_unavailable": "100%"}},
-    "runtime_config": {
-      "service_invoke": {"auth_type": "API_KEY", "protocol": "HTTP", "port": 8000},
-      "service_limit": {"rate_limit": {"num": 200, "unit": "SECONDS"}, "request_timeout": 180, "request_size_limit": 50}
-    },
-    "instance_groups": [{
-      "name": "<group>", "count": 1, "secret_type": "DEW", "secret_name": "<this-account DEW secret>",
-      "unit_configs": [{
-        "name": "role-0", "count": 1, "port": 8000,
-        "flavor": "<service flavor>",
-        "image": {"source": "SWR", "swr_path": "swr.<region>.myhuaweicloud.com/<ns>/<name>:<tag>"},
-        "cmd": "<recipe cmd>",
-        "files": [{"source": "OBS", "type": "FILE", "address": "obs://<bucket>/weight/", "mount_path": "/weight/", "read_only": true}],
-        "startup_health": {"check_method": "HTTP", "protocol": "HTTP", "url": "/health", "initial_delay_seconds": 600, "period_seconds": 30, "timeout_seconds": 30, "failure_threshold": 40}
-      }]
+  "name": "<service>", "type": "REAL_TIME", "workspace_id": "0",
+  "version": "1.0.0", "deploy_timeout_minutes": 60,
+  "runtime_config": {
+    "service_invoke": {"auth_type": "API_KEY", "protocol": "HTTP", "port": 8000},
+    "service_limit": {"rate_limit": {"num": 200, "unit": "SECONDS"}, "request_timeout": 180, "request_size_limit": 50}
+  },
+  "group_configs": [{
+    "name": "<group>", "count": 1, "weight": 100,
+    "secret_type": "DEW", "secret_name": "<this-account DEW secret>",
+    "unit_configs": [{
+      "name": "role-0", "count": 1, "port": 8000,
+      "flavor": "<service flavor>",
+      "image": {"source": "SWR", "swr_path": "swr.<region>.myhuaweicloud.com/<ns>/<name>:<tag>"},
+      "cmd": "<recipe cmd>",
+      "files": [{"source": "OBS", "type": "FILE", "address": "obs://<bucket>/weight/", "mount_path": "/weight/", "read_only": true}],
+      "startup_health": {"check_method": "HTTP", "protocol": "HTTP", "url": "/health", "initial_delay_seconds": 600, "period_seconds": 30, "timeout_seconds": 30, "failure_threshold": 40}
     }]
-  }
+  }]
 }
 ```
 
+- 权重挂载用 `files` + `type: FILE`。`type: MODEL` 在 Qwen3.8 上会耗满 60 分钟部署超时；FILE 约 11 分钟进入运行。
 - `image` 必须是对象 `{source: SWR, swr_path}`。字符串会被拒绝。
 - `secret_type` 为 `DEW`。密钥里是 `accessKeyId` / `secretAccessKey`。
 - `rate_limit` 在 `runtime_config.service_limit` 下，缺了会 `ModelArts.8037`。

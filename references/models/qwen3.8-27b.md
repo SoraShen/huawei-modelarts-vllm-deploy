@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Weights | `Eco-Tech/Qwen3.8-27B-w8a8`（`Qwen/Qwen3.8-27B` 的 W8A8）→ 平铺到 `obs://<bucket>/weight/` → `/weight/`。`--quantization ascend` 需要这份量化权重 |
+| Weights | `Eco-Tech/Qwen3.8-27B-w8a8`（`Qwen/Qwen3.8-27B` 的 W8A8）→ 平铺到 `obs://<bucket>/weight/`。挂载用 **FILE**，不要用 MODEL：`{"source":"OBS","type":"FILE","address":"obs://<bucket>/weight/","mount_path":"/weight/"}`。同一套权重，FILE 约 11 分钟进入运行；MODEL 会耗满 60 分钟部署超时。`--quantization ascend` 需要这份量化权重 |
 | Upstream image | `quay.io/ascend/vllm-ascend:qwen3.8-a2`（不是 `v0.23.0`） |
 | SWR | `swr.af-south-1.myhuaweicloud.com/<ns>/vllm-ascend:qwen3.8-a2`（`docker pull` → `tag` → `push`，不用重建） |
 | NPU | **2**，TP 2。`unit_configs[0].count` = **1**；卡数在 flavor 里 |
