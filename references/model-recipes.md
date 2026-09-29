@@ -11,7 +11,8 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 
 | Model | Note |
 |---|---|
-| [Qwen3.8-27B](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2 |
+| [Qwen3.8-27B](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2，权重用 FILE |
+| [Qwen3-VL-8B](models/qwen3-vl-8b.md) | `qwen3-vl-8b:v1`，1 卡，`bash /code/serve.sh` |
 | [Whisper Sunbird](models/whisper-sunbird.md) | 自定义镜像，1 卡，`bash /code/serve.sh` |
 
 换账号时只换 `<ns>` / `<bucket>` / DEW。不要复用别的账号的 SWR、OBS 或 DEW。
