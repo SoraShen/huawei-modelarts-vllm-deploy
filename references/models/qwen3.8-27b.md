@@ -18,4 +18,6 @@ vllm serve /weight --tensor-parallel-size 2 --quantization ascend \
   --port 8000 --host 0.0.0.0
 ```
 
-不要用 1 卡、TP 1 或 `v0.23.0`。MTN 上一次 1 卡 `v0.23.0` 没有按这个配方，服务失败。
+不要用 1 卡、TP 1 或 `v0.23.0`。
+
+权重必须是 W8A8：10 个 `quant_model_weights-*.safetensors`，合计约 30GB。18 个 `model-*.safetensors`、合计约 52GB 的未量化 checkpoint 对不上 `--quantization ascend`，容器会 BackOffStart。两边镜像 digest 相同也没用。
