@@ -54,7 +54,7 @@ Ask in Chinese. Defaults in **bold**. Block until AK/SK and model name exist.
 | **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B](references/models/qwen3.8-27b.md) → **2**, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
 | **ModelArts region** | **`af-south-1` 南非** | Option: `ap-southeast-1` 香港. Third region: list flavors first, then ask. |
 | **ECS region** | **`ap-southeast-3` 新加坡** | Option: `ap-southeast-1` 香港 **only if** ListFlavors has Kunpeng/`kc1`/`aarch64`. |
-| **Pool** | **`public`** | `dedicated`: list pools, user picks id. Never `POST /pools`. |
+| **Pool** | **dedicated if one exists** | `GET /pools` first. A Running Infer pool is the target for every real-time create and update. Shared/public only if this request explicitly asks for the shared pool, or the list is empty. Never `POST /pools`. |
 | **ARM ECS** | user provides | See §2. Always ask first. |
 | **HF_TOKEN** | — | Required if gated. Session / ECS env only. |
 
@@ -81,7 +81,7 @@ Ask in Chinese, short, with a recommended option. No confirm → no create API.
 - Create a DEW secret (if one exists, list it and let them pick reuse vs new)
 - Create inference service / PUT new version / **stop an existing public-pool service** (quota clash)
 - Create ECS (flavor, EIP 100 Mbps traffic, login) — §2 step 3
-- Dedicated: send pool list; user picks `pool_id`. Empty → offer public, or tell them to buy a pool. Never `POST /pools`
+- Pool: a Running dedicated pool with Infer is mandatory for every real-time create and every upgrade/update. One pool → use its id. Several → send the list and wait for a pick. Create and update JSON must set `group_configs[0].pool_id`. Do not omit it and do not send the shared/public pool unless this request explicitly asks for the shared pool. Empty list → offer public, or tell them to buy a pool. Never `POST /pools`
 - Stop/delete a prep VM we created (after deploy is healthy — §8)
 
 ## 4. Automate vs user-prep
@@ -90,7 +90,7 @@ Ask in Chinese, short, with a recommended option. No confirm → no create API.
 |---|---|---|---|
 | Deploy CLI package | **Skip** | This skill + `huawei_signed.py` is the runner | Nothing |
 | ModelArts agency | **Automate** | `POST /v2/{project_id}/agency` then `POST /v2/{project_id}/authorizations` | GET authorizations first; if missing, create immediately. 403 / no IAM → console checklist below |
-| Buy dedicated pool | **Skip** | Prepaid nodes; not a deploy side effect | Console: Running pool, Infer enabled, idle NPU ≥ count; reply name or id. Else public or buy first |
+| Buy dedicated pool | **Skip** | Prepaid nodes; not a deploy side effect | Console: Running pool, Infer enabled, idle NPU ≥ count; reply name or id. If one already exists, every create and update must use it. Else public or buy first |
 | Enable ModelArts/OBS/SWR/DEW/ECS in a region | **Skip** | Account-level console; no reliable one-shot REST | Enable those services in **both** regions. On “not enabled”, name the region + service |
 | Small ECS | **Automate after confirm** | CreateServers works | §2. Missing VPC etc. → prep list, no silent create |
 | DEW / SWR login / OBS / service CRUD | **Automate** | AK/SK is enough | Overwrite/create still hits §3 gates |
@@ -109,11 +109,15 @@ Do not continue deploy without a working agency.
 
 ### Dedicated pool (still skip buy)
 
-If user chose dedicated:
+Before every real-time create and every upgrade/update, `GET /v2/{project_id}/pools`.
 
-1. `GET /v2/{project_id}/pools`
-2. Show Running + Infer/X-Infer + enough NPU. Wait for pick. `group_configs[0].pool_id = <id>`
-3. Empty — tell them:
+If a dedicated pool already exists (Running, Infer/X-Infer, idle NPU ≥ count):
+
+1. Target that pool. Do not select or send the shared/public pool unless the user explicitly asks for the shared pool in this request.
+2. One qualifying pool → set `group_configs[0].pool_id` to that id on both the create JSON and the update JSON. Several → show them and wait for a pick.
+3. Leaving `pool_id` empty, or writing the shared pool, fails the upgrade: the update is accepted, the OBS mount is issued, then the service rolls back in about 5 seconds with `Update service failed`. Later upgrades keep failing the same way. Do not retry that body.
+
+Empty list — tell them:
 
 - 同区域已有专属池，状态 Running，范围含 Infer
 - 空闲 NPU ≥ 本次卡数
@@ -142,7 +146,9 @@ Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public
 
 ## 6. Pool behavior
 
-**Public:** omit `pool_id`. Compact scheduling. Multiple public-pool services **can** run simultaneously (e.g. 1-card + 2-card + 1-card = 4 NPU across 3 services) — total NPU is the quota, not service count. Multi-NPU public pods have hit missing HCCL rank-table — prefer **1 NPU** unless the model needs TP>1. Qwen3.8-27B does: it ran on the public pool at TP 2 (2-card flavor) — [references/models/qwen3.8-27b.md](references/models/qwen3.8-27b.md). Upgrade: `max_surge=0%`, `max_unavailable=100%` (stop → PUT version → start). Rolling 25/25 on 4 cards often `FailedScheduling`.
+**Existing dedicated pool:** every deploy and every upgrade/update of a real-time service must target it. Never select or send the shared/public pool unless the user explicitly asks for the shared pool in that request. The create JSON and the update JSON must include the dedicated pool id (`group_configs[0].pool_id`). Leaving the pool empty or writing the shared pool caused a real failure: the update was accepted, the OBS mount was issued, then the service rolled back in about 5 seconds with `Update service failed`, and later upgrades kept failing the same way.
+
+**Public:** only when this request explicitly asks for the shared pool, or no dedicated pool exists. Then omit `pool_id`. Compact scheduling. Multiple public-pool services **can** run simultaneously (e.g. 1-card + 2-card + 1-card = 4 NPU across 3 services) — total NPU is the quota, not service count. Multi-NPU public pods have hit missing HCCL rank-table — prefer **1 NPU** unless the model needs TP>1. Qwen3.8-27B does: it ran on the public pool at TP 2 (2-card flavor) — [references/models/qwen3.8-27b.md](references/models/qwen3.8-27b.md). Upgrade: `max_surge=0%`, `max_unavailable=100%` (stop → PUT version → start). Rolling 25/25 on 4 cards often `FailedScheduling`.
 
 **Dedicated:** same OBS/SWR/DEW/image/code as public. TP = visible NPUs. Do not apply public-pool rank-table folklore.
 
@@ -156,7 +162,7 @@ Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public
 - [ ] weights OBS folder has config.json at mount root
 - [ ] code script OBS → /code/  (overwrite gated)
 - [ ] DEW secret keys accessKeyId / secretAccessKey
-- [ ] service create (public | confirmed pool_id)
+- [ ] service create/update includes dedicated `pool_id` when a pool exists (shared/public only if this request asks, or no pool)
 - [ ] API key create + bind
 - [ ] /health then one task probe (chat or transcription)
 - [ ] stop or delete this session's prep ECS (pay-per-use — do not leave it running)
@@ -224,7 +230,8 @@ Public OBS mount: CSMS keys **exactly** `accessKeyId` / `secretAccessKey`. Dedic
 `POST https://modelarts.{ma_region}.myhuaweicloud.com/v2/{project_id}/services`
 
 - `type`: `REAL_TIME`
-- Public: no `pool_id`. Dedicated: confirmed `pool_id`
+- Dedicated pool already exists: create **and** update JSON must set `group_configs[0].pool_id` to that id. Do not leave it empty and do not write the shared/public pool unless this request explicitly asks for the shared pool. Empty or shared-pool update: accepted, OBS mount issued, rollback in about 5 seconds with `Update service failed`; the same body keeps failing.
+- Shared/public (only if no dedicated pool, or this request explicitly asks): omit `pool_id`
 - v2 body that returned 200: [references/model-recipes.md](references/model-recipes.md#v2-createservice-body-returned-http-200). `image` = `{"source": "SWR", "swr_path": ...}` object, `secret_type` `DEW`, field `flavor`, port 8000
 - NPU count comes from `flavor` (`...npu.1d910b` / `...npu.2d910b`). `unit_configs[0].count` = **1** instance, not the NPU count
 - **`runtime_config.service_limit.rate_limit` required** or `ModelArts.8037 RateLimit must not be null`: add `"rate_limit": {"num": 200, "unit": "SECONDS"}`
@@ -268,6 +275,7 @@ Stopping the prep VM: `POST /v1/{project_id}/cloudservers/action` `{ "os-stop": 
 - OBS prefix without `config.json` at `/weight/`
 - Overwriting a shared OBS code path the user did not name
 - Hong Kong SWR/OBS on a Johannesburg service (or the reverse)
+- Create or update a real-time service with an empty `pool_id` or the shared/public pool when a dedicated pool already exists, unless this request explicitly asks for the shared pool
 - `POST /pools` as a side effect of deploy
 - Silent use/create of ECS, VPC, bucket, secret, or service
 - Reusing another account's AK/SK, ECS, OBS, SWR, or DEW
