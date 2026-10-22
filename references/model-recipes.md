@@ -2,18 +2,20 @@
 
 每个模型单独一份，镜像和部署方案会更新。这里只做索引和跨模型的坑。部署前以当时的教程和本账号已跑通的服务为准。
 
-Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」是公共池节点 `modelarts.bm.npu.arm.8snt9b2.d`，不是准备机规格。公共池单服务最多可调度 8 张卡。2 卡 Qwen3.8 和 Whisper 不依赖专属池或 SFS Turbo。4 卡 Qwen3.8 跑在专属池上：已有专属池时，创建和更新都必须带该池 id；除非这次明确要求共享池，否则不要发共享池。
+Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」是公共池节点 `modelarts.bm.npu.arm.8snt9b2.d`，不是准备机规格。公共池单服务最多可调度 8 张卡。2 卡 Qwen3.8 和 Whisper 不依赖专属池或 SFS Turbo。4 卡 Qwen3.8 跑在专属池上：已有专属池时，创建和更新都必须带该池 id；除非这次明确要求共享池，否则不要发共享池。8 卡 DeepSeek-V4.1-Flash 的服务规格是 `modelarts.bm.arm.192u.1536g.npu.8d910b`，同样跑在专属池上。节点规格 `modelarts.bm.npu.arm.8snt9b2.d` 是整机，CreateService 填的是这个 8 卡服务规格。
 
 | Service flavor | NPU |
 |---|---|
 | `modelarts.bm.arm.24u.192g.npu.1d910b` | 1 |
 | `modelarts.bm.arm.48u.384g.npu.2d910b` | 2 |
 | `modelarts.bm.arm.96u.768g.npu.4d910b` | 4 |
+| `modelarts.bm.arm.192u.1536g.npu.8d910b` | 8 |
 
 | Model | Note |
 |---|---|
 | [Qwen3.8-27B 公共池 2 卡](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2，上下文 131072，served name `qwen3.8`，FILE 挂载。权重必须是约 30GB 的 W8A8，不是约 52GB 的未量化 checkpoint |
 | [Qwen3.8-27B 专属池 4 卡](models/qwen3.8-27b-4npu.md) | 同一镜像标签 `qwen3.8-a2`，4 卡，TP 4，上下文 133120，`qwen3_5_mtp`。served name 是 `qwen3.8-reasoning`；网关别名 `Qwen3.8-27B` 不要写进 `--served-model-name`。权重同样是 W8A8 |
+| [DeepSeek-V4.1-Flash 专属池 8 卡](models/deepseek-v4.1-flash.md) | 标签 `vllm-ascend:deepseek-v4.1-flash-w4a8-modelarts-a2-cf57391d808d`，8 卡，TP 8，上下文 1048576，served name `deepseek-v41`，端口 8020。平台命令是镜像入口 `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`（再跑 `serve_v2.sh`）。投机解码 `dspark`，K=5。W4A8 先挂到 `/source/`，再在本地铺开 |
 | [Qwen3-VL-8B](models/qwen3-vl-8b.md) | `qwen3-vl-8b:v1`，1 卡，`bash /code/serve.sh` |
 | [Whisper Sunbird](models/whisper-sunbird.md) | 自定义镜像，1 卡，`bash /code/serve.sh` |
 
@@ -53,7 +55,7 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 - `image` 必须是对象 `{source: SWR, swr_path}`。字符串会被拒绝。
 - `secret_type` 为 `DEW`。密钥里是 `accessKeyId` / `secretAccessKey`。
 - `rate_limit` 在 `runtime_config.service_limit` 下，缺了会 `ModelArts.8037`。
-- 字段名是 `flavor`。端口 8000。
+- 字段名是 `flavor`。示例端口是 8000。DeepSeek-V4.1-Flash 用 8020，见 [models/deepseek-v4.1-flash.md](models/deepseek-v4.1-flash.md)。
 
 ## 跨模型的坑
 

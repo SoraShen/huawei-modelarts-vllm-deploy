@@ -61,7 +61,7 @@ Ask in Chinese. Defaults in **bold**. Block until AK/SK and model name exist.
 | **AK / SK** | env `HUAWEI_AK` `HUAWEI_SK` (or `huawei-ak` / `huawei-sk` in a user-named `.env.local` **for this account**) | Required. Session export only. Wrong-account file → ignore, ask again. |
 | **Model name** | — | HF / ModelScope id, e.g. `Qwen/Qwen3-VL-8B-Instruct` or `Sunbird/asr-whisper-51-african-languages` |
 | **Runtime** | from §0 | `vllm` or `custom`. Do not let the user skip the gate. |
-| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B public](references/models/qwen3.8-27b.md) → **2**, [Qwen3.8-27B dedicated](references/models/qwen3.8-27b-4npu.md) → **4**, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
+| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B public](references/models/qwen3.8-27b.md) → **2**, [Qwen3.8-27B dedicated](references/models/qwen3.8-27b-4npu.md) → **4**, [DeepSeek-V4.1-Flash](references/models/deepseek-v4.1-flash.md) → **8**, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
 | **ModelArts region** | **`af-south-1` 南非** | Option: `ap-southeast-1` 香港. Third region: list flavors first, then ask. |
 | **ECS region** | **`ap-southeast-3` 新加坡** | Option: `ap-southeast-1` 香港 **only if** ListFlavors has Kunpeng/`kc1`/`aarch64`. |
 | **Pool** | **dedicated if one exists** | `GET /pools` first. A Running Infer pool is the target for every real-time create and update. Shared/public only if this request explicitly asks for the shared pool, or the list is empty. Never `POST /pools`. |
@@ -172,7 +172,7 @@ Stop and say: 「请在控制台开通 {region} 的 {service}，开通后再叫�
 | ECS default | `ap-southeast-3` | Singapore Kunpeng |
 | ECS option | `ap-southeast-1` | Hong Kong Kunpeng **if listed** |
 
-Public Johannesburg flavors that worked: `modelarts.bm.arm.24u.192g.npu.1d910b` (1× Snt9b2), `modelarts.bm.arm.48u.384g.npu.2d910b` (2×). Dedicated: flavor from that pool's `status.resources.available`, not the public SKU blindly. The dedicated 4-NPU Qwen3.8 reference used `modelarts.bm.arm.96u.768g.npu.4d910b` (4× Snt9b2) — [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md).
+Public Johannesburg flavors that worked: `modelarts.bm.arm.24u.192g.npu.1d910b` (1× Snt9b2), `modelarts.bm.arm.48u.384g.npu.2d910b` (2×). Dedicated: flavor from that pool's `status.resources.available`, not the public SKU blindly. The dedicated 4-NPU Qwen3.8 reference used `modelarts.bm.arm.96u.768g.npu.4d910b` (4× Snt9b2) — [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md). The dedicated 8-NPU DeepSeek-V4.1-Flash reference used `modelarts.bm.arm.192u.1536g.npu.8d910b` (8× Snt9b2) — [references/models/deepseek-v4.1-flash.md](references/models/deepseek-v4.1-flash.md). The pool node SKU `modelarts.bm.npu.arm.8snt9b2.d` is the whole machine; CreateService `flavor` is the 8-NPU service flavor.
 
 Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public inference pool node (`modelarts.bm.npu.arm.8snt9b2.d`), **not** the prep ECS size. Public pool can schedule up to 8 NPUs; dedicated pool + SFS Turbo is optional for the 2-NPU Qwen3.8 and Whisper references. The 4-NPU Qwen3.8 reference ran on a dedicated pool: when a dedicated pool exists, create and update must send that pool id, and must not send the shared pool unless this request asks.
 
@@ -182,7 +182,7 @@ Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public
 
 **Public:** only when this request explicitly asks for the shared pool, or no dedicated pool exists. Then omit `pool_id`. Compact scheduling. Multiple public-pool services **can** run simultaneously (e.g. 1-card + 2-card + 1-card = 4 NPU across 3 services) — total NPU is the quota, not service count. Multi-NPU public pods have hit missing HCCL rank-table — prefer **1 NPU** unless the model needs TP>1. Qwen3.8-27B does: it ran on the public pool at TP 2 (2-card flavor) — [references/models/qwen3.8-27b.md](references/models/qwen3.8-27b.md). That file is the public 2-NPU recipe. The dedicated 4-NPU recipe (TP 4, max-model-len 133120, MTP, served name `qwen3.8-reasoning`) is [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md). Upgrade: `max_surge=0%`, `max_unavailable=100%` (stop → PUT version → start). Rolling 25/25 on 4 cards often `FailedScheduling`.
 
-**Dedicated:** same OBS/SWR/DEW/image/code as public. TP = visible NPUs. Do not apply public-pool rank-table folklore. 4-NPU Qwen3.8 (the command that matched a Lite Server 4-of-8 after MTP) is [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md), separate from the public 2-NPU page.
+**Dedicated:** same OBS/SWR/DEW/image/code as public. TP = visible NPUs. Do not apply public-pool rank-table folklore. 4-NPU Qwen3.8 (the command that matched a Lite Server 4-of-8 after MTP) is [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md), separate from the public 2-NPU page. 8-NPU DeepSeek-V4.1-Flash (TP 8, max-model-len 1048576, `dspark` K=5, served name `deepseek-v41`, port 8020) is [references/models/deepseek-v4.1-flash.md](references/models/deepseek-v4.1-flash.md). Its ModelArts command is `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`, which runs `serve_v2.sh`. Do not replace that command with the console env block, and do not set `MULTISTREAM`.
 
 ## 7. Deploy checklist
 
@@ -206,7 +206,7 @@ SWR **in ModelArts region**, `linux/arm64` only.
 
 **vLLM:** known good base `quay.io/ascend/vllm-ascend:v0.23.0` → `swr.{ma_region}.myhuaweicloud.com/<ns>/<name>:<tag>`.
 
-**Per-model tags / NPU / cmd (reference only):** [references/models/](references/models/). Qwen3.8-27B image tag `vllm-ascend:qwen3.8-a2` (not the generic v0.23.0 tag): [public 2 NPU / TP 2](references/models/qwen3.8-27b.md), [dedicated 4 NPU / TP 4](references/models/qwen3.8-27b-4npu.md). Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
+**Per-model tags / NPU / cmd (reference only):** [references/models/](references/models/). Qwen3.8-27B image tag `vllm-ascend:qwen3.8-a2` (not the generic v0.23.0 tag): [public 2 NPU / TP 2](references/models/qwen3.8-27b.md), [dedicated 4 NPU / TP 4](references/models/qwen3.8-27b-4npu.md). DeepSeek-V4.1-Flash tag `vllm-ascend:deepseek-v4.1-flash-w4a8-modelarts-a2-cf57391d808d`: [dedicated 8 NPU / TP 8](references/models/deepseek-v4.1-flash.md), command `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`. Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
 
 CreateService v2 `image` = `{"source": "SWR", "swr_path": "..."}`, not a string. Euler docker bridge has no PyPI: `docker run --network host` → `pip install` → `docker commit`.
 
@@ -274,7 +274,7 @@ After create/reuse, `GET https://kms.{ma_region}.myhuaweicloud.com/v1/{project_i
 - Dedicated pool already exists: create **and** update JSON must set `group_configs[0].pool_id` to that id. Do not leave it empty and do not write the shared/public pool unless this request explicitly asks for the shared pool. Empty or shared-pool update: accepted, OBS mount issued, rollback in about 5 seconds with `Update service failed`; the same body keeps failing.
 - Shared/public (only if no dedicated pool, or this request explicitly asks): omit `pool_id`
 - v2 body that returned 200: [references/model-recipes.md](references/model-recipes.md#v2-createservice-body-returned-http-200). `image` = `{"source": "SWR", "swr_path": ...}` object, `secret_type` `DEW`, field `flavor`, port 8000
-- NPU count comes from `flavor` (`...npu.1d910b` / `...npu.2d910b` / `...npu.4d910b`). `unit_configs[0].count` = **1** instance, not the NPU count
+- NPU count comes from `flavor` (`...npu.1d910b` / `...npu.2d910b` / `...npu.4d910b` / `...npu.8d910b`). `unit_configs[0].count` = **1** instance, not the NPU count
 - **`runtime_config.service_limit.rate_limit` required** or `ModelArts.8037 RateLimit must not be null`: add `"rate_limit": {"num": 200, "unit": "SECONDS"}`
 - PUT existing version number → `ModelArts.8031` → bump
 - STOP can take minutes; START after PUT may 400 while already DEPLOYING — poll GET
