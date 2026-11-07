@@ -61,7 +61,7 @@ Ask in Chinese. Defaults in **bold**. Block until AK/SK and model name exist.
 | **AK / SK** | env `HUAWEI_AK` `HUAWEI_SK` (or `huawei-ak` / `huawei-sk` in a user-named `.env.local` **for this account**) | Required. Session export only. Wrong-account file → ignore, ask again. |
 | **Model name** | — | HF / ModelScope id, e.g. `Qwen/Qwen3-VL-8B-Instruct` or `Sunbird/asr-whisper-51-african-languages` |
 | **Runtime** | from §0 | `vllm` or `custom`. Do not let the user skip the gate. |
-| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B public](references/models/qwen3.8-27b.md) → **2**, [Qwen3.8-27B dedicated](references/models/qwen3.8-27b-4npu.md) → **4**, [DeepSeek-V4.1-Flash](references/models/deepseek-v4.1-flash.md) → **8**, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
+| **NPU count** | lookup | Known models first: [references/model-recipes.md](references/model-recipes.md) ([Qwen3.8-27B public](references/models/qwen3.8-27b.md) → **2**, [Qwen3.8-27B dedicated](references/models/qwen3.8-27b-4npu.md) → **4**, [DeepSeek-V4.1-Flash](references/models/deepseek-v4.1-flash.md) → **8**, [DeepSeek-V4.1-Flash W4A8 1P1D](references/models/deepseek-v4.1-flash-w4a8-1p1d.md) → **16** as two 8-NPU units, [Whisper Sunbird](references/models/whisper-sunbird.md) → **1**). Reference only; images and commands change. Else matrix / fallback Qwen3-VL-8B → **1**. |
 | **ModelArts region** | **`af-south-1` 南非** | Option: `ap-southeast-1` 香港. Third region: list flavors first, then ask. |
 | **ECS region** | **`ap-southeast-3` 新加坡** | Option: `ap-southeast-1` 香港 **only if** ListFlavors has Kunpeng/`kc1`/`aarch64`. |
 | **Pool** | **dedicated if one exists** | `GET /pools` first. A Running Infer pool is the target for every real-time create and update. Shared/public only if this request explicitly asks for the shared pool, or the list is empty. Never `POST /pools`. |
@@ -184,13 +184,15 @@ Johannesburg Snt9b2 = Ascend 910B3 = **A2**. A guide's "8× 910B3" is the public
 
 **Dedicated:** same OBS/SWR/DEW/image/code as public. TP = visible NPUs. Do not apply public-pool rank-table folklore. 4-NPU Qwen3.8 (the command that matched a Lite Server 4-of-8 after MTP) is [references/models/qwen3.8-27b-4npu.md](references/models/qwen3.8-27b-4npu.md), separate from the public 2-NPU page. 8-NPU DeepSeek-V4.1-Flash (TP 8, max-model-len 1048576, `dspark` K=5, served name `deepseek-v41`, port 8020) is [references/models/deepseek-v4.1-flash.md](references/models/deepseek-v4.1-flash.md). Its ModelArts command is `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`, which runs `serve_v2.sh`. Do not replace that command with the console env block, and do not set `MULTISTREAM`.
 
+Eco-Tech W4A8 1P1D is a separate page: two 8-NPU units, Prefill DP2/TP4 and Decode DP4/TP2, served name `dsv41`, vLLM-Ascend v0.30.0 rather than the chiro tag above — [references/models/deepseek-v4.1-flash-w4a8-1p1d.md](references/models/deepseek-v4.1-flash-w4a8-1p1d.md). Do not replace the 8-NPU page with it, and do not point the 1P1D command at `/opt/dsv41`. On A2, do not add the A3 switches `enable_dsa_cp`, `enable_flashcomm1`, or `enable_shared_expert_dp`; the current Prefill template already contains those three, and the 1P1D page records that as a caution.
+
 ## 7. Deploy checklist
 
 ```
 - [ ] intake recap accepted (includes runtime)
 - [ ] ARM ECS (provided / user-picked / confirmed create)
 - [ ] agency: current IAM user bound + user confirmed OBS ListBucket/GetObject (or console 一键授权 done) — [references/agency.md](references/agency.md)
-- [ ] image linux/arm64 in regional SWR
+- [ ] image linux/arm64 in regional SWR. DeepSeek 1P1D uses the v0.30.0 page, not the chiro tag or `v0.23.0`
 - [ ] weights OBS folder has config.json at mount root
 - [ ] code script OBS → /code/  (overwrite gated)
 - [ ] DEW: `GET /secrets/{name}/versions/latest` keys are accessKeyId / secretAccessKey; prefer the deploy AK
@@ -206,7 +208,7 @@ SWR **in ModelArts region**, `linux/arm64` only.
 
 **vLLM:** known good base `quay.io/ascend/vllm-ascend:v0.23.0` → `swr.{ma_region}.myhuaweicloud.com/<ns>/<name>:<tag>`.
 
-**Per-model tags / NPU / cmd (reference only):** [references/models/](references/models/). Qwen3.8-27B image tag `vllm-ascend:qwen3.8-a2` (not the generic v0.23.0 tag): [public 2 NPU / TP 2](references/models/qwen3.8-27b.md), [dedicated 4 NPU / TP 4](references/models/qwen3.8-27b-4npu.md). DeepSeek-V4.1-Flash tag `vllm-ascend:deepseek-v4.1-flash-w4a8-modelarts-a2-cf57391d808d`: [dedicated 8 NPU / TP 8](references/models/deepseek-v4.1-flash.md), command `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`. Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
+**Per-model tags / NPU / cmd (reference only):** [references/models/](references/models/). Qwen3.8-27B image tag `vllm-ascend:qwen3.8-a2` (not the generic v0.23.0 tag): [public 2 NPU / TP 2](references/models/qwen3.8-27b.md), [dedicated 4 NPU / TP 4](references/models/qwen3.8-27b-4npu.md). DeepSeek-V4.1-Flash chiro tag `vllm-ascend:deepseek-v4.1-flash-w4a8-modelarts-a2-cf57391d808d`: [dedicated 8 NPU / TP 8](references/models/deepseek-v4.1-flash.md), command `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`. Eco-Tech W4A8 1P1D is vLLM-Ascend v0.30.0 and the SWR tag on that page, command `bash /model-scripts/entrypoint.sh --nic-name eth0`: [two 8-NPU units](references/models/deepseek-v4.1-flash-w4a8-1p1d.md). Whisper Sunbird = custom `whisper-custom:v0.23` on **1** NPU.
 
 CreateService v2 `image` = `{"source": "SWR", "swr_path": "..."}`, not a string. Euler docker bridge has no PyPI: `docker run --network host` → `pip install` → `docker commit`.
 

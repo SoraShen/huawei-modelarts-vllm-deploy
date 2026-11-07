@@ -16,6 +16,7 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 | [Qwen3.8-27B 公共池 2 卡](models/qwen3.8-27b.md) | `qwen3.8-a2`，2 卡，TP 2，上下文 131072，served name `qwen3.8`，FILE 挂载。权重必须是约 30GB 的 W8A8，不是约 52GB 的未量化 checkpoint |
 | [Qwen3.8-27B 专属池 4 卡](models/qwen3.8-27b-4npu.md) | 同一镜像标签 `qwen3.8-a2`，4 卡，TP 4，上下文 133120，`qwen3_5_mtp`。served name 是 `qwen3.8-reasoning`；网关别名 `Qwen3.8-27B` 不要写进 `--served-model-name`。权重同样是 W8A8 |
 | [DeepSeek-V4.1-Flash 专属池 8 卡](models/deepseek-v4.1-flash.md) | 标签 `vllm-ascend:deepseek-v4.1-flash-w4a8-modelarts-a2-cf57391d808d`，8 卡，TP 8，上下文 1048576，served name `deepseek-v41`，端口 8020。平台命令是镜像入口 `bash /opt/dsv41/modelarts/modelarts_entrypoint.sh serve`（再跑 `serve_v2.sh`）。投机解码 `dspark`，K=5。W4A8 先挂到 `/source/`，再在本地铺开 |
+| [DeepSeek-V4.1-Flash-1017 W4A8 1P1D](models/deepseek-v4.1-flash-w4a8-1p1d.md) | Eco-Tech 权重，vLLM-Ascend v0.30.0 那条 SWR，两个 8 卡单元。Prefill DP2/TP4，Decode DP4/TP2，served name `dsv41`，平台端口 8000，引擎从 7100 起。命令 `bash /model-scripts/entrypoint.sh --nic-name eth0`。不要用上面的 chiro 标签或入口替换这一页 |
 | [Qwen3-VL-8B](models/qwen3-vl-8b.md) | `qwen3-vl-8b:v1`，1 卡，`bash /code/serve.sh` |
 | [Whisper Sunbird](models/whisper-sunbird.md) | 自定义镜像，1 卡，`bash /code/serve.sh` |
 
@@ -55,7 +56,7 @@ Johannesburg NPU：Snt9b2 = Ascend 910B3 = **A2**。指南里的「8× 910B3」�
 - `image` 必须是对象 `{source: SWR, swr_path}`。字符串会被拒绝。
 - `secret_type` 为 `DEW`。密钥里是 `accessKeyId` / `secretAccessKey`。
 - `rate_limit` 在 `runtime_config.service_limit` 下，缺了会 `ModelArts.8037`。
-- 字段名是 `flavor`。示例端口是 8000。DeepSeek-V4.1-Flash 用 8020，见 [models/deepseek-v4.1-flash.md](models/deepseek-v4.1-flash.md)。
+- 字段名是 `flavor`。示例端口是 8000。chiro 那份 DeepSeek-V4.1-Flash 用 8020，见 [models/deepseek-v4.1-flash.md](models/deepseek-v4.1-flash.md)。1P1D 的平台端口是 8000，引擎从 7100 起，见 [models/deepseek-v4.1-flash-w4a8-1p1d.md](models/deepseek-v4.1-flash-w4a8-1p1d.md)。
 
 ## 跨模型的坑
 
